@@ -1,0 +1,22 @@
+package com.midas.sms.entity;
+
+public enum Role {
+    ASESOR,
+    ADMIN,
+    BACKOFFICE,
+    BACKOFFICETRAMITADOR,
+    BACKOFFICESEGUIMIENTO,
+    COORDINADOR,
+    AUDITOR,
+    PROGRAMADOR,
+    GERENCIA,
+    PSICOLOGO,
+    BACKOFFICE1,
+    COACHING,
+    LECTOR,
+    JEFEPISO,
+    MARKETING,
+    RECURSOSHUMANOS,
+    RRHHJEFE
+}
+
