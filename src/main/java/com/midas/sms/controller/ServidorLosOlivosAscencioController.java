@@ -1,7 +1,7 @@
 package com.midas.sms.controller;
 
 import com.midas.sms.dto.PaginaContenidoDTO;
-import com.midas.sms.service.ServidorLosOlivosEnmanuelAlisonYuvisiaService;
+import com.midas.sms.service.ServidorLosOlivosAscencioService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
@@ -13,11 +13,11 @@ import java.io.InputStream;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/monitor-los-olivos-enmanuel-alison-yuvisia")
+@RequestMapping("/api/monitor-los-olivos-ascencio")
 @RequiredArgsConstructor
-public class ServidorLosOlivosEnmanuelAlisonYuvisiaController {
+public class ServidorLosOlivosAscencioController {
 
-    private final ServidorLosOlivosEnmanuelAlisonYuvisiaService service;
+    private final ServidorLosOlivosAscencioService service;
 
     @GetMapping("/archivos")
     public ResponseEntity<PaginaContenidoDTO> explorarContenido(
@@ -26,9 +26,9 @@ public class ServidorLosOlivosEnmanuelAlisonYuvisiaController {
             @RequestParam(required = false) String fechaDesde,
             @RequestParam(required = false) String fechaHasta,
             @RequestParam(defaultValue = "1") int pagina,
-            @RequestParam(defaultValue = "100") int tamano
-    ) {
-        PaginaContenidoDTO resultado = service.listarContenidoPaginado(ruta, buscar, fechaDesde, fechaHasta, pagina, tamano);
+            @RequestParam(defaultValue = "100") int tamano) {
+        PaginaContenidoDTO resultado = service.listarContenidoPaginado(ruta, buscar, fechaDesde, fechaHasta, pagina,
+                tamano);
         return ResponseEntity.ok(resultado);
     }
 
@@ -39,24 +39,23 @@ public class ServidorLosOlivosEnmanuelAlisonYuvisiaController {
             @RequestParam(required = false) String fechaDesde,
             @RequestParam(required = false) String fechaHasta,
             @RequestParam(defaultValue = "1") int pagina,
-            @RequestParam(defaultValue = "100") int tamano
-    ) {
-        PaginaContenidoDTO resultado = service.listarContenidoPaginado(carpeta, buscar, fechaDesde, fechaHasta, pagina, tamano);
+            @RequestParam(defaultValue = "100") int tamano) {
+        PaginaContenidoDTO resultado = service.listarContenidoPaginado(carpeta, buscar, fechaDesde, fechaHasta, pagina,
+                tamano);
         return ResponseEntity.ok(resultado);
     }
 
     @GetMapping("/descargar")
     public ResponseEntity<InputStreamResource> descargarArchivo(
             @RequestParam String ruta,
-            @RequestParam String archivo
-    ) {
+            @RequestParam String archivo) {
         try {
             InputStream inputStream = service.descargarArchivo(ruta, archivo);
-            
+
             HttpHeaders headers = new HttpHeaders();
             headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + archivo + "\"");
             headers.add(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_OCTET_STREAM_VALUE);
-            
+
             return ResponseEntity.ok()
                     .headers(headers)
                     .body(new InputStreamResource(inputStream));
@@ -68,15 +67,14 @@ public class ServidorLosOlivosEnmanuelAlisonYuvisiaController {
     @PostMapping("/descargar-multiples")
     public ResponseEntity<InputStreamResource> descargarArchivosMultiples(
             @RequestParam String ruta,
-            @RequestBody List<String> archivos
-    ) {
+            @RequestBody List<String> archivos) {
         try {
             InputStream zipStream = service.descargarArchivosComoZip(ruta, archivos);
-            
+
             HttpHeaders headers = new HttpHeaders();
             headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"archivos_seleccionados.zip\"");
             headers.add(HttpHeaders.CONTENT_TYPE, "application/zip");
-            
+
             return ResponseEntity.ok()
                     .headers(headers)
                     .body(new InputStreamResource(zipStream));

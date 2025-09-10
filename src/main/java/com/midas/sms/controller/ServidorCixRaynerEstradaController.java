@@ -1,7 +1,7 @@
 package com.midas.sms.controller;
 
 import com.midas.sms.dto.PaginaContenidoDTO;
-import com.midas.sms.service.ServidorCixJordanOlenkaService;
+import com.midas.sms.service.ServidorCixRaynerEstradaService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
@@ -13,11 +13,11 @@ import java.io.InputStream;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/monitor-cix-jordan-olenka")
+@RequestMapping("/api/monitor-cix-rayner-estrada")
 @RequiredArgsConstructor
-public class ServidorCixJordanOlenkaController {
+public class ServidorCixRaynerEstradaController {
 
-    private final ServidorCixJordanOlenkaService service;
+    private final ServidorCixRaynerEstradaService service;
 
     @GetMapping("/archivos")
     public ResponseEntity<PaginaContenidoDTO> explorarContenido(

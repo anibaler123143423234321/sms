@@ -21,18 +21,18 @@ import java.util.zip.ZipOutputStream;
 
 @Service
 @RequiredArgsConstructor
-public class ServidorLosOlivosEnmanuelAlisonYuvisiaService {
+public class ServidorLosOlivosRonierYuvvisiaAlinsonService {
 
-    @Value("${asterisk.los.olivos.enmanuel.alison.yuvisia.server.host}")
+    @Value("${asterisk.los.olivos.ronier.yuvvisia.alinson.server.host}")
     private String remoteHost;
 
-    @Value("${asterisk.los.olivos.enmanuel.alison.yuvisia.server.user}")
+    @Value("${asterisk.los.olivos.ronier.yuvvisia.alinson.server.user}")
     private String remoteUser;
 
-    @Value("${asterisk.los.olivos.enmanuel.alison.yuvisia.server.password}")
+    @Value("${asterisk.los.olivos.ronier.yuvvisia.alinson.server.password}")
     private String remotePassword;
 
-    @Value("${asterisk.los.olivos.enmanuel.alison.yuvisia.server.port}")
+    @Value("${asterisk.los.olivos.ronier.yuvvisia.alinson.server.port}")
     private int remotePort;
 
     private static final String RUTA_BASE_MONITOR = "/var/spool/asterisk/monitorDONE";
