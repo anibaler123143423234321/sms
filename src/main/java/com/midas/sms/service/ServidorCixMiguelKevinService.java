@@ -17,7 +17,6 @@ import org.springframework.web.server.ResponseStatusException;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -32,18 +31,18 @@ import java.util.zip.ZipOutputStream;
 
 @Service
 @RequiredArgsConstructor
-public class ServidorCixVidarteService {
+public class ServidorCixMiguelKevinService {
 
-    @Value("${asterisk.server.host}")
+    @Value("${asterisk.cix.miguel.kevin.server.host}")
     private String remoteHost;
 
-    @Value("${asterisk.server.user}")
+    @Value("${asterisk.cix.miguel.kevin.server.user}")
     private String remoteUser;
 
-    @Value("${asterisk.server.password}")
+    @Value("${asterisk.cix.miguel.kevin.server.password}")
     private String remotePassword;
 
-    @Value("${asterisk.server.port}")
+    @Value("${asterisk.cix.miguel.kevin.server.port}")
     private int remotePort;
 
     private static final String RUTA_BASE_MONITOR = "/var/spool/asterisk/monitorDONE";
@@ -51,7 +50,6 @@ public class ServidorCixVidarteService {
     public PaginaContenidoDTO listarContenidoPaginado(String subRuta, String terminoBusqueda, String fechaDesde,
             String fechaHasta, int pagina, int tamano) {
         String rutaCompleta = buildRutaCompleta(subRuta);
-
         Session session = null;
         Channel channel = null;
         ChannelSftp sftp = null;
@@ -70,13 +68,10 @@ public class ServidorCixVidarteService {
             } catch (JSchException ex) {
                 String m = String.valueOf(ex.getMessage());
                 if (m != null && m.toLowerCase(Locale.ROOT).contains("timeout")) {
-                    throw new ResponseStatusException(
-                            HttpStatus.GATEWAY_TIMEOUT,
+                    throw new ResponseStatusException(HttpStatus.GATEWAY_TIMEOUT,
                             "Timeout al conectar por SFTP al host destino");
                 }
-                throw new ResponseStatusException(
-                        HttpStatus.BAD_GATEWAY,
-                        "Error SSH/SFTP: " + m);
+                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Error SSH/SFTP: " + m);
             }
 
             channel = session.openChannel("sftp");
@@ -85,7 +80,6 @@ public class ServidorCixVidarteService {
 
             @SuppressWarnings("unchecked")
             Vector<ChannelSftp.LsEntry> entries = sftp.ls(rutaCompleta);
-
             List<ArchivoSistemaDTO> todos = mapEntries(entries, terminoBusqueda, fechaDesde, fechaHasta);
 
             long total = todos.size();
@@ -121,7 +115,6 @@ public class ServidorCixVidarteService {
             throw new IllegalArgumentException("Ruta no válida.");
         }
         String ruta = RUTA_BASE_MONITOR + "/" + normalizada;
-        // normalizar dobles barras
         return ruta.replace("//", "/");
     }
 
@@ -132,7 +125,6 @@ public class ServidorCixVidarteService {
         SimpleDateFormat horaFmt = new SimpleDateFormat("HH:mm:ss", Locale.ROOT);
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
-        // Parsear fechas de filtro si están presentes
         LocalDate fechaDesdeLocal = null;
         LocalDate fechaHastaLocal = null;
 
@@ -157,7 +149,6 @@ public class ServidorCixVidarteService {
             if (".".equals(name) || "..".equals(name))
                 continue;
 
-            // Filtro por término de búsqueda
             if (terminoBusqueda != null && !terminoBusqueda.isBlank()
                     && !name.toLowerCase(Locale.ROOT).contains(terminoBusqueda.toLowerCase(Locale.ROOT))) {
                 continue;
@@ -171,7 +162,6 @@ public class ServidorCixVidarteService {
 
             String fechaArchivo = fechaFmt.format(mdate);
 
-            // Filtro por rango de fechas
             if (fechaDesdeLocal != null || fechaHastaLocal != null) {
                 try {
                     LocalDate fechaArchivoLocal = LocalDate.parse(fechaArchivo, dateFormatter);
@@ -188,12 +178,7 @@ public class ServidorCixVidarteService {
                 }
             }
 
-            out.add(new ArchivoSistemaDTO(
-                    name,
-                    fechaArchivo,
-                    horaFmt.format(mdate),
-                    String.valueOf(size),
-                    isDir));
+            out.add(new ArchivoSistemaDTO(name, fechaArchivo, horaFmt.format(mdate), String.valueOf(size), isDir));
         }
 
         // Ordenar: carpetas primero (ascendente), luego archivos (ascendente)
@@ -205,9 +190,6 @@ public class ServidorCixVidarteService {
         return out;
     }
 
-    /**
-     * Descarga un archivo individual del servidor remoto
-     */
     public InputStream descargarArchivo(String ruta, String nombreArchivo) {
         String rutaCompleta = buildRutaCompleta(ruta);
         String rutaArchivo = rutaCompleta + "/" + nombreArchivo;
@@ -230,7 +212,6 @@ public class ServidorCixVidarteService {
             channel.connect();
             sftp = (ChannelSftp) channel;
 
-            // Leer el archivo completo en memoria
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             sftp.get(rutaArchivo, baos);
 
@@ -248,9 +229,6 @@ public class ServidorCixVidarteService {
         }
     }
 
-    /**
-     * Descarga múltiples archivos como un ZIP
-     */
     public InputStream descargarArchivosComoZip(String ruta, List<String> nombresArchivos) {
         String rutaCompleta = buildRutaCompleta(ruta);
 
@@ -279,18 +257,15 @@ public class ServidorCixVidarteService {
                 try {
                     String rutaArchivo = rutaCompleta + "/" + nombreArchivo;
 
-                    // Crear entrada en el ZIP
                     ZipEntry zipEntry = new ZipEntry(nombreArchivo);
                     zipOut.putNextEntry(zipEntry);
 
-                    // Descargar archivo y escribir al ZIP
                     ByteArrayOutputStream archivoStream = new ByteArrayOutputStream();
                     sftp.get(rutaArchivo, archivoStream);
                     zipOut.write(archivoStream.toByteArray());
                     zipOut.closeEntry();
 
                 } catch (Exception e) {
-                    // Continuar con el siguiente archivo si uno falla
                     System.err.println("Error descargando archivo: " + nombreArchivo + " - " + e.getMessage());
                 }
             }
