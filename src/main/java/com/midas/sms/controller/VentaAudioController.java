@@ -24,7 +24,7 @@ public class VentaAudioController {
      *   "numeroServidor": "23",
      *   "fechaRegistro": "2025-10-15T21:54:06",
      *   "movilContacto": "987654321",
-     *   "numeroAgente": "009"  // Opcional
+     *   "numeroAgente": "8009"  // Opcional (código del agente, ej: 8009, 8022)
      * }
      */
     @PostMapping("/buscar-audios")

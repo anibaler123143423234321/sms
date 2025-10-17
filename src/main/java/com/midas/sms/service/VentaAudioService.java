@@ -84,41 +84,50 @@ public class VentaAudioService {
             // 3. Convertir fecha ISO a formato DDMMYYYY
             String fechaFormateada = convertirFechaAFormatoArchivo(request.getFechaRegistro());
             
-            // 4. Limpiar móvil de contacto
-            String movilLimpio = limpiarMovilContacto(request.getMovilContacto());
+            // 4. Extraer todos los números de móvil del campo movilContacto
+            List<String> moviles = extraerNumerosMoviles(request.getMovilContacto());
 
-            log.info("📅 Fecha formateada: {}, Móvil limpio: {}, Endpoint: {}", 
-                fechaFormateada, movilLimpio, endpoint);
-
-            // 5. Buscar en ambas rutas: celulares y fijos
+            // 5. Buscar en ambas rutas: celulares y fijos, para cada móvil
             List<AudioVentaDTO> audios = new ArrayList<>();
-            audios.addAll(buscarEnRuta(request.getNumeroServidor(), "GSM/spain/celulares/" + fechaFormateada, movilLimpio, endpoint));
-            audios.addAll(buscarEnRuta(request.getNumeroServidor(), "GSM/spain/fijos/" + fechaFormateada, movilLimpio, endpoint));
+            for (String movil : moviles) {
+                audios.addAll(buscarEnRuta(request.getNumeroServidor(), "GSM/spain/celulares/" + fechaFormateada, movil, endpoint));
+                audios.addAll(buscarEnRuta(request.getNumeroServidor(), "GSM/spain/fijos/" + fechaFormateada, movil, endpoint));
 
-            // 6. Filtrar por número de agente si existe
+                // También buscar sin el primer dígito (por si el archivo tiene formato diferente)
+                if (movil.length() > 8) {
+                    String movilSinPrefijo = movil.substring(1);
+                    audios.addAll(buscarEnRuta(request.getNumeroServidor(), "GSM/spain/celulares/" + fechaFormateada, movilSinPrefijo, endpoint));
+                    audios.addAll(buscarEnRuta(request.getNumeroServidor(), "GSM/spain/fijos/" + fechaFormateada, movilSinPrefijo, endpoint));
+                }
+            }
+
+            // 6. Eliminar duplicados
+            audios = audios.stream()
+                .distinct()
+                .collect(Collectors.toList());
+
+            // 7. Filtrar por número de agente si existe
             if (request.getNumeroAgente() != null && !request.getNumeroAgente().isEmpty()) {
-                String agenteOriginal = request.getNumeroAgente();
-                log.info("🔍 Filtrando por agente: {}", agenteOriginal);
+                String agenteRequest = request.getNumeroAgente();
 
                 audios = audios.stream()
                     .filter(audio -> {
                         if (audio.getNumeroAgente() == null) return false;
 
-                        // Comparar sin ceros a la izquierda: "009" == "9", "022" == "22"
-                        String agenteAudio = audio.getNumeroAgente().replaceFirst("^0+(?!$)", "");
-                        String agenteRequest = agenteOriginal.replaceFirst("^0+(?!$)", "");
+                        // Comparar de 3 formas:
+                        // 1. Exacta: "8011" == "8011"
+                        // 2. Con prefijo 8: "011" → "8011"
+                        // 3. Sin prefijo 8: "8011" → "011"
+                        String agenteAudio = audio.getNumeroAgente();
 
-                        boolean match = agenteAudio.equals(agenteRequest);
-                        log.debug("Comparando agente audio '{}' con request '{}': {}",
-                            audio.getNumeroAgente(), agenteOriginal, match);
+                        boolean match = agenteAudio.equals(agenteRequest) ||
+                                       agenteAudio.equals("8" + agenteRequest) ||
+                                       ("8" + agenteAudio).equals(agenteRequest);
+
                         return match;
                     })
                     .collect(Collectors.toList());
-
-                log.info("✅ Audios después de filtrar por agente: {}", audios.size());
             }
-
-            log.info("✅ Total audios encontrados: {}", audios.size());
 
             return BuscarAudiosVentaResponse.builder()
                 .success(true)
@@ -164,7 +173,7 @@ public class VentaAudioService {
 
                     // Extraer número de agente y extensión del nombre del archivo
                     String numeroAgente = extraerNumeroAgente(archivo.nombre(), movilContacto);
-                    String extension = extraerExtension(archivo.nombre());
+                    String extension = extraerExtension(archivo.nombre(), movilContacto);
 
                     AudioVentaDTO audio = AudioVentaDTO.builder()
                         .nombre(archivo.nombre())
@@ -232,37 +241,68 @@ public class VentaAudioService {
     }
 
     /**
-     * Limpia el móvil de contacto quitando prefijos internacionales
+     * Extrae todos los números de móvil del campo movilContacto
+     * Ejemplo: "624784798 ( 960432023 SOLIVEA )" → ["624784798", "960432023"]
      */
-    private String limpiarMovilContacto(String movil) {
-        String limpio = movil.replaceAll("[\\s\\-\\(\\)]", "");
-        limpio = limpio.replaceAll("^(\\+34|0034)", "");
-        limpio = limpio.replaceAll("^0+", "");
-        return limpio;
+    private List<String> extraerNumerosMoviles(String movilContacto) {
+        List<String> moviles = new ArrayList<>();
+
+        if (movilContacto == null || movilContacto.isEmpty()) {
+            return moviles;
+        }
+
+        // Extraer todos los números de 9 dígitos o más
+        Pattern pattern = Pattern.compile("\\d{9,}");
+        Matcher matcher = pattern.matcher(movilContacto);
+
+        while (matcher.find()) {
+            String numero = matcher.group();
+            // Limpiar prefijos internacionales
+            numero = numero.replaceAll("^(34|0034)", "");
+            // Quitar ceros iniciales pero mantener al menos 9 dígitos
+            while (numero.length() > 9 && numero.startsWith("0")) {
+                numero = numero.substring(1);
+            }
+            if (numero.length() >= 9) {
+                moviles.add(numero);
+            }
+        }
+
+        // Si no se encontró ningún número, intentar limpiar el string completo
+        if (moviles.isEmpty()) {
+            String limpio = movilContacto.replaceAll("[^0-9]", "");
+            if (limpio.length() >= 9) {
+                moviles.add(limpio);
+            }
+        }
+
+        return moviles;
     }
 
     /**
      * Extrae el número de agente del nombre del archivo
-     * Ejemplo: "022606358444-8007-16-10-2025-13-49-28.gsm" con móvil "606358444" → "022"
+     * Formato: {extension}{movilContacto}-{numeroAgente}-{DD-MM-YYYY-HH-MM-SS}.gsm
+     * Ejemplo: "022626047261-8009-16-10-2025-14-42-47.gsm" → "8009"
      */
     private String extraerNumeroAgente(String nombreArchivo, String movilContacto) {
-        int indexMovil = nombreArchivo.indexOf(movilContacto);
-        if (indexMovil > 0) {
-            return nombreArchivo.substring(0, indexMovil);
+        // Patrón: {extension}{movil}-{agente}-{fecha}.gsm
+        Pattern pattern = Pattern.compile("\\d+-(\\d+)-\\d{2}-\\d{2}-\\d{4}");
+        Matcher matcher = pattern.matcher(nombreArchivo);
+        if (matcher.find()) {
+            return matcher.group(1);
         }
         return null;
     }
 
     /**
      * Extrae la extensión del nombre del archivo
-     * Ejemplo: "022606358444-8007-16-10-2025-13-49-28.gsm" → "8007"
+     * Formato: {extension}{movilContacto}-{numeroAgente}-{DD-MM-YYYY-HH-MM-SS}.gsm
+     * Ejemplo: "022626047261-8009-16-10-2025-14-42-47.gsm" con móvil "626047261" → "022"
      */
-    private String extraerExtension(String nombreArchivo) {
-        // Patrón: {agente}{movil}-{extension}-{fecha}.gsm
-        Pattern pattern = Pattern.compile("\\d+-(\\d+)-\\d{2}-\\d{2}-\\d{4}");
-        Matcher matcher = pattern.matcher(nombreArchivo);
-        if (matcher.find()) {
-            return matcher.group(1);
+    private String extraerExtension(String nombreArchivo, String movilContacto) {
+        int indexMovil = nombreArchivo.indexOf(movilContacto);
+        if (indexMovil > 0) {
+            return nombreArchivo.substring(0, indexMovil);
         }
         return null;
     }
