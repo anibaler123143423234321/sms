@@ -1,6 +1,7 @@
 package com.midas.sms.service;
 
 import com.jcraft.jsch.Channel;
+import com.jcraft.jsch.ChannelExec;
 import com.jcraft.jsch.ChannelSftp;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
@@ -9,6 +10,7 @@ import com.jcraft.jsch.SftpATTRS;
 import com.midas.sms.dto.ArchivoSistemaDTO;
 import com.midas.sms.dto.PaginaContenidoDTO;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -30,6 +32,7 @@ import java.util.Vector;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ServidorCixVidarteService {
@@ -46,7 +49,14 @@ public class ServidorCixVidarteService {
     @Value("${asterisk.server.port}")
     private int remotePort;
 
+    // ❌ MÉTODO ANTIGUO (LENTO) - Mantener para compatibilidad con métodos existentes
     private static final String RUTA_BASE_MONITOR = "/var/spool/asterisk/monitorDONE";
+
+    // ✅ NUEVO MÉTODO (RÁPIDO) - Usa script de búsqueda optimizado
+    // Comandos: cd .. && cd BUSQUEDA && ./buscar_audios2 {numero}
+    private static final String SCRIPT_BUSQUEDA = "./buscar_audios2";
+    private static final String RUTA_RESULTADOS_BASE = "/BUSQUEDA/audios";
+    private static final long TAMANO_MINIMO_BYTES = 180 * 1024; // 180 KB ≈ 3 minutos de audio
 
     public PaginaContenidoDTO listarContenidoPaginado(String subRuta, String terminoBusqueda, String fechaDesde,
             String fechaHasta, int pagina, int tamano) {
@@ -116,10 +126,25 @@ public class ServidorCixVidarteService {
     private String buildRutaCompleta(String subRuta) {
         if (subRuta == null || subRuta.isBlank())
             return RUTA_BASE_MONITOR;
+
         String normalizada = subRuta.replace("\\", "/").trim();
-        if (normalizada.startsWith("..") || normalizada.startsWith("/")) {
+
+        // ✅ Permitir rutas absolutas que empiezan con /BUSQUEDA
+        if (normalizada.startsWith("/BUSQUEDA")) {
+            return normalizada;
+        }
+
+        // ❌ Rechazar path traversal (..)
+        if (normalizada.startsWith("..")) {
             throw new IllegalArgumentException("Ruta no válida.");
         }
+
+        // ✅ Si empieza con /, es ruta absoluta válida
+        if (normalizada.startsWith("/")) {
+            return normalizada;
+        }
+
+        // Ruta relativa - agregar RUTA_BASE_MONITOR
         String ruta = RUTA_BASE_MONITOR + "/" + normalizada;
         // normalizar dobles barras
         return ruta.replace("//", "/");
@@ -307,6 +332,191 @@ public class ServidorCixVidarteService {
                 channel.disconnect();
             if (session != null && session.isConnected())
                 session.disconnect();
+        }
+    }
+
+    /**
+     * ✅ NUEVO MÉTODO DE BÚSQUEDA RÁPIDA
+     * Usa el script /BUSQUEDA/buscar_audios2 para búsqueda optimizada
+     *
+     * Flujo:
+     * 1. Ejecuta: cd /BUSQUEDA && ./buscar_audios2 {numeroMovil}
+     * 2. Script crea carpeta: /BUSQUEDA/audios/{fecha-actual}/{numeroMovil}/
+     * 3. Lista archivos en esa carpeta
+     * 4. Filtra archivos > 180 KB (≈ 3 minutos de duración)
+     * 5. Ordena por fecha descendente
+     * 6. Retorna resultados paginados
+     *
+     * @param numeroMovil Número de móvil a buscar
+     * @param pagina Número de página (1-based)
+     * @param tamano Tamaño de página
+     * @return Página con los audios encontrados (filtrados por duración > 3 minutos)
+     */
+    public PaginaContenidoDTO buscarAudiosRapido(String numeroMovil, int pagina, int tamano) {
+        Session session = null;
+        ChannelExec channelExec = null;
+        ChannelSftp sftpChannel = null;
+
+        try {
+            log.info("🔍 Búsqueda rápida para móvil: {}", numeroMovil);
+
+            // 1. Conectar por SSH
+            JSch jsch = new JSch();
+            session = jsch.getSession(remoteUser, remoteHost, remotePort);
+            session.setPassword(remotePassword);
+            session.setConfig("StrictHostKeyChecking", "no");
+            session.setConfig("PreferredAuthentications", "publickey,password,keyboard-interactive");
+            session.setServerAliveInterval(15000);
+            session.setServerAliveCountMax(2);
+            session.connect(8000);
+
+            // 2. Ejecutar script de búsqueda - PASO A PASO
+            String fechaHoy = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+
+            // ✅ Comandos paso a paso como indicaste:
+            // 1. cd ..
+            // 2. cd BUSQUEDA
+            // 3. ./buscar_audios2 {numero}
+            String comando = String.format("cd .. && cd BUSQUEDA && %s %s", SCRIPT_BUSQUEDA, numeroMovil);
+
+            log.info("📡 Ejecutando comando: {}", comando);
+
+            channelExec = (ChannelExec) session.openChannel("exec");
+            channelExec.setCommand(comando);
+            channelExec.connect();
+
+            // Esperar a que termine el script (máximo 30 segundos)
+            int maxWait = 30;
+            int waited = 0;
+            while (!channelExec.isClosed() && waited < maxWait) {
+                Thread.sleep(1000);
+                waited++;
+            }
+
+            if (channelExec.getExitStatus() != 0) {
+                log.warn("⚠️ Script retornó código: {}", channelExec.getExitStatus());
+            }
+
+            channelExec.disconnect();
+
+            log.info("✅ Script ejecutado. Buscando archivos en: {}/{}/{}",
+                RUTA_RESULTADOS_BASE, fechaHoy, numeroMovil);
+
+            // 3. Listar archivos en la carpeta de resultados
+            String rutaResultados = String.format("%s/%s/%s", RUTA_RESULTADOS_BASE, fechaHoy, numeroMovil);
+
+            Channel channel = session.openChannel("sftp");
+            channel.connect();
+            sftpChannel = (ChannelSftp) channel;
+
+            @SuppressWarnings("unchecked")
+            Vector<ChannelSftp.LsEntry> entries = sftpChannel.ls(rutaResultados);
+
+            // 4. Filtrar archivos (solo archivos, no directorios, y con tamaño > 1 minuto)
+            List<ArchivoSistemaDTO> archivos = new ArrayList<>();
+
+            for (ChannelSftp.LsEntry entry : entries) {
+                String nombre = entry.getFilename();
+
+                // Ignorar . y ..
+                if (".".equals(nombre) || "..".equals(nombre)) {
+                    continue;
+                }
+
+                SftpATTRS attrs = entry.getAttrs();
+                boolean esDirectorio = attrs.isDir();
+
+                // Solo archivos
+                if (esDirectorio) {
+                    continue;
+                }
+
+                long tamanoBytes = attrs.getSize();
+
+                // Filtrar por tamaño (> 180 KB ≈ 3 minutos)
+                if (tamanoBytes < TAMANO_MINIMO_BYTES) {
+                    log.debug("⏩ Archivo {} ignorado (tamaño: {} bytes < {} bytes)",
+                        nombre, tamanoBytes, TAMANO_MINIMO_BYTES);
+                    continue;
+                }
+
+                // Formatear tamaño
+                String tamanoFormateado = formatearTamano(tamanoBytes);
+
+                // Extraer fecha y hora del timestamp
+                long mtime = attrs.getMTime() * 1000L;
+                Date fecha = new Date(mtime);
+                SimpleDateFormat sdfFecha = new SimpleDateFormat("yyyy-MM-dd");
+                SimpleDateFormat sdfHora = new SimpleDateFormat("HH:mm:ss");
+
+                ArchivoSistemaDTO archivo = new ArchivoSistemaDTO(
+                    nombre,
+                    sdfFecha.format(fecha),
+                    sdfHora.format(fecha),
+                    tamanoFormateado,
+                    false
+                );
+
+                archivos.add(archivo);
+                log.debug("✅ Archivo encontrado: {} - {} - {}", nombre, tamanoFormateado, sdfFecha.format(fecha));
+            }
+
+            log.info("📊 Total archivos encontrados (> 3 min): {}", archivos.size());
+
+            // 5. Ordenar por fecha/hora descendente (más recientes primero)
+            archivos.sort((a, b) -> {
+                try {
+                    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                    Date fechaA = sdf.parse(a.fecha() + " " + a.hora());
+                    Date fechaB = sdf.parse(b.fecha() + " " + b.hora());
+                    return fechaB.compareTo(fechaA);
+                } catch (ParseException e) {
+                    return 0;
+                }
+            });
+
+            // 6. Paginar resultados
+            long total = archivos.size();
+            int size = Math.max(1, tamano);
+            int totalPaginas = (int) Math.ceil((double) total / size);
+            int paginaActual = Math.min(Math.max(1, pagina), Math.max(1, totalPaginas));
+            int desde = (paginaActual - 1) * size;
+            int hasta = (int) Math.min(desde + size, total);
+            List<ArchivoSistemaDTO> page = (total > 0 && desde < hasta)
+                ? archivos.subList(desde, hasta)
+                : new ArrayList<>();
+
+            log.info("📄 Página {}/{} - Mostrando {} de {} archivos",
+                paginaActual, totalPaginas, page.size(), total);
+
+            return new PaginaContenidoDTO(paginaActual, totalPaginas, total, page);
+
+        } catch (Exception e) {
+            log.error("❌ Error en búsqueda rápida: {}", e.getMessage(), e);
+            throw new ResponseStatusException(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "Error en búsqueda rápida: " + e.getMessage()
+            );
+        } finally {
+            if (sftpChannel != null && sftpChannel.isConnected())
+                sftpChannel.disconnect();
+            if (channelExec != null && channelExec.isConnected())
+                channelExec.disconnect();
+            if (session != null && session.isConnected())
+                session.disconnect();
+        }
+    }
+
+    /**
+     * Formatea el tamaño en bytes a formato legible (KB, MB)
+     */
+    private String formatearTamano(long bytes) {
+        if (bytes < 1024) {
+            return bytes + " B";
+        } else if (bytes < 1024 * 1024) {
+            return String.format("%.2f KB", bytes / 1024.0);
+        } else {
+            return String.format("%.2f MB", bytes / (1024.0 * 1024.0));
         }
     }
 }

@@ -78,5 +78,15 @@ public class ServidorCixSolivesa2Controller {
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .body(new InputStreamResource(zipStream));
     }
+
+    @GetMapping("/buscar-rapido")
+    public ResponseEntity<PaginaContenidoDTO> buscarAudiosRapido(
+            @RequestParam String numeroMovil,
+            @RequestParam(defaultValue = "1") int pagina,
+            @RequestParam(defaultValue = "50") int tamano
+    ) {
+        PaginaContenidoDTO resultado = servidorCixSolivesa2Service.buscarAudiosRapido(numeroMovil, pagina, tamano);
+        return ResponseEntity.ok(resultado);
+    }
 }
 

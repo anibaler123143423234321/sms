@@ -40,12 +40,13 @@ public class VentaAudioService {
     private static final Map<String, String> SERVIDOR_A_ENDPOINT = new HashMap<>();
 
     static {
-        SERVIDOR_A_ENDPOINT.put("154", "/api/monitor-cix-vidarte");
-        SERVIDOR_A_ENDPOINT.put("23", "/api/monitor-cix-tantalean");
-        SERVIDOR_A_ENDPOINT.put("31", "/api/monitor-cix-kevin");
-        SERVIDOR_A_ENDPOINT.put("126", "/api/monitor-cix-julca");
-        SERVIDOR_A_ENDPOINT.put("14", "/api/monitor-cix-solivesa1");
-        SERVIDOR_A_ENDPOINT.put("157", "/api/monitor-cix-solivesa2");
+        // ✅ Mapeo correcto según application.properties
+        SERVIDOR_A_ENDPOINT.put("23", "/api/monitor-cix-tantalean");     // 104.128.75.23 - MARYORITH TANTALEAN
+        SERVIDOR_A_ENDPOINT.put("31", "/api/monitor-cix-kevin");         // 172.96.143.31 - KEVIN QUISPE
+        SERVIDOR_A_ENDPOINT.put("126", "/api/monitor-cix-julca");        // 45.92.18.126 - JOSSEY JULCA
+        SERVIDOR_A_ENDPOINT.put("14", "/api/monitor-cix-solivesa1");     // 104.128.75.14 - SOLIVESA 1
+        SERVIDOR_A_ENDPOINT.put("154", "/api/monitor-cix-vidarte");      // 104.243.47.154 - VIDARTE/JUAPE
+        SERVIDOR_A_ENDPOINT.put("157", "/api/monitor-cix-solivesa2");    // 104.243.47.157 - SOLIVESA 2
     }
 
     /**
@@ -127,7 +128,7 @@ public class VentaAudioService {
     }
 
     /**
-     * Busca audios en un servidor específico
+     * Busca audios en un servidor específico (MÉTODO ORIGINAL)
      */
     private List<AudioVentaDTO> buscarEnServidor(BuscarAudiosVentaRequest request) {
         List<AudioVentaDTO> audios = new ArrayList<>();

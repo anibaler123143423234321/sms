@@ -82,5 +82,15 @@ public class ServidorCixTantaleanController {
             return ResponseEntity.badRequest().build();
         }
     }
+
+    @GetMapping("/buscar-rapido")
+    public ResponseEntity<PaginaContenidoDTO> buscarAudiosRapido(
+            @RequestParam String numeroMovil,
+            @RequestParam(defaultValue = "1") int pagina,
+            @RequestParam(defaultValue = "50") int tamano
+    ) {
+        PaginaContenidoDTO resultado = service.buscarAudiosRapido(numeroMovil, pagina, tamano);
+        return ResponseEntity.ok(resultado);
+    }
 }
 

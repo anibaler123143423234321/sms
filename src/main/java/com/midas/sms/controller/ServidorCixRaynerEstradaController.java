@@ -72,16 +72,26 @@ public class ServidorCixRaynerEstradaController {
     ) {
         try {
             InputStream zipStream = service.descargarArchivosComoZip(ruta, archivos);
-            
+
             HttpHeaders headers = new HttpHeaders();
             headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"archivos_seleccionados.zip\"");
             headers.add(HttpHeaders.CONTENT_TYPE, "application/zip");
-            
+
             return ResponseEntity.ok()
                     .headers(headers)
                     .body(new InputStreamResource(zipStream));
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
         }
+    }
+
+    @GetMapping("/buscar-rapido")
+    public ResponseEntity<PaginaContenidoDTO> buscarAudiosRapido(
+            @RequestParam String numeroMovil,
+            @RequestParam(defaultValue = "1") int pagina,
+            @RequestParam(defaultValue = "50") int tamano
+    ) {
+        PaginaContenidoDTO resultado = service.buscarAudiosRapido(numeroMovil, pagina, tamano);
+        return ResponseEntity.ok(resultado);
     }
 }

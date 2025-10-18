@@ -82,5 +82,31 @@ public class ServidorCixJulcaController {
             return ResponseEntity.badRequest().build();
         }
     }
+
+    /**
+     * ✅ NUEVO ENDPOINT - Búsqueda rápida de audios usando script optimizado
+     *
+     * GET /api/monitor-cix-julca/buscar-rapido?numeroMovil=653608842&pagina=1&tamano=50
+     *
+     * Usa el script /BUSQUEDA/buscar_audios2 para búsqueda ultra-rápida
+     * - Ejecuta script que crea carpeta: /BUSQUEDA/audios/{fecha-actual}/{numeroMovil}/
+     * - Filtra automáticamente archivos con duración > 3 minutos (> 180 KB)
+     * - Ordena por fecha descendente (más recientes primero)
+     * - Retorna resultados paginados
+     *
+     * @param numeroMovil Número de móvil a buscar (ej: 653608842)
+     * @param pagina Número de página (default: 1)
+     * @param tamano Tamaño de página (default: 50)
+     * @return Página con los audios encontrados
+     */
+    @GetMapping("/buscar-rapido")
+    public ResponseEntity<PaginaContenidoDTO> buscarAudiosRapido(
+            @RequestParam String numeroMovil,
+            @RequestParam(defaultValue = "1") int pagina,
+            @RequestParam(defaultValue = "50") int tamano
+    ) {
+        PaginaContenidoDTO resultado = service.buscarAudiosRapido(numeroMovil, pagina, tamano);
+        return ResponseEntity.ok(resultado);
+    }
 }
 
