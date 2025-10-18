@@ -50,9 +50,10 @@ public class VentaAudioService {
 
     /**
      * Busca los audios de una venta en el servidor de archivos
+     * Si no encuentra en el servidor especificado, busca en los servidores SOLIVESA
      */
     public BuscarAudiosVentaResponse buscarAudiosVenta(BuscarAudiosVentaRequest request) {
-        log.info("🔍 Buscando audios para venta - Servidor: {}, Fecha: {}, Móvil: {}", 
+        log.info("🔍 Buscando audios para venta - Servidor: {}, Fecha: {}, Móvil: {}",
             request.getNumeroServidor(), request.getFechaRegistro(), request.getMovilContacto());
 
         try {
@@ -66,26 +67,86 @@ public class VentaAudioService {
                     .build();
             }
 
-            // 2. Obtener el endpoint del servidor
+            // 2. Buscar en el servidor principal
+            List<AudioVentaDTO> audios = buscarEnServidor(request);
+
+            // 3. Si no se encontraron audios, buscar en los servidores SOLIVESA
+            if (audios.isEmpty()) {
+                log.info("⚠️ No se encontraron audios en servidor {}. Buscando en servidores SOLIVESA...", request.getNumeroServidor());
+
+                // Buscar en SOLIVESA 1 (servidor 14)
+                BuscarAudiosVentaRequest requestSolivesa1 = BuscarAudiosVentaRequest.builder()
+                    .numeroServidor("14")
+                    .fechaRegistro(request.getFechaRegistro())
+                    .movilContacto(request.getMovilContacto())
+                    .numeroAgente(request.getNumeroAgente())
+                    .build();
+                List<AudioVentaDTO> audiosSolivesa1 = buscarEnServidor(requestSolivesa1);
+                audios.addAll(audiosSolivesa1);
+
+                // Buscar en SOLIVESA 2 (servidor 157)
+                BuscarAudiosVentaRequest requestSolivesa2 = BuscarAudiosVentaRequest.builder()
+                    .numeroServidor("157")
+                    .fechaRegistro(request.getFechaRegistro())
+                    .movilContacto(request.getMovilContacto())
+                    .numeroAgente(request.getNumeroAgente())
+                    .build();
+                List<AudioVentaDTO> audiosSolivesa2 = buscarEnServidor(requestSolivesa2);
+                audios.addAll(audiosSolivesa2);
+
+                if (!audios.isEmpty()) {
+                    log.info("✅ Se encontraron {} audios en servidores SOLIVESA", audios.size());
+                }
+            }
+
+            // 4. Eliminar duplicados finales
+            audios = audios.stream()
+                .distinct()
+                .collect(Collectors.toList());
+
+            String mensaje = audios.isEmpty()
+                ? "No se encontraron audios en ningún servidor"
+                : "Búsqueda completada exitosamente";
+
+            return BuscarAudiosVentaResponse.builder()
+                .success(true)
+                .message(mensaje)
+                .audios(audios)
+                .totalAudios(audios.size())
+                .build();
+
+        } catch (Exception e) {
+            log.error("❌ Error buscando audios: {}", e.getMessage(), e);
+            return BuscarAudiosVentaResponse.builder()
+                .success(false)
+                .message("Error al buscar audios: " + e.getMessage())
+                .audios(new ArrayList<>())
+                .totalAudios(0)
+                .build();
+        }
+    }
+
+    /**
+     * Busca audios en un servidor específico
+     */
+    private List<AudioVentaDTO> buscarEnServidor(BuscarAudiosVentaRequest request) {
+        List<AudioVentaDTO> audios = new ArrayList<>();
+
+        try {
+            // 1. Obtener el endpoint del servidor
             String endpoint = SERVIDOR_A_ENDPOINT.get(request.getNumeroServidor());
             if (endpoint == null) {
                 log.warn("❌ No se encontró endpoint para servidor: {}", request.getNumeroServidor());
-                return BuscarAudiosVentaResponse.builder()
-                    .success(false)
-                    .message("Servidor no encontrado: " + request.getNumeroServidor())
-                    .audios(new ArrayList<>())
-                    .totalAudios(0)
-                    .build();
+                return audios;
             }
 
-            // 3. Convertir fecha ISO a formato DDMMYYYY
+            // 2. Convertir fecha ISO a formato DDMMYYYY
             String fechaFormateada = convertirFechaAFormatoArchivo(request.getFechaRegistro());
-            
-            // 4. Extraer todos los números de móvil del campo movilContacto
+
+            // 3. Extraer todos los números de móvil del campo movilContacto
             List<String> moviles = extraerNumerosMoviles(request.getMovilContacto());
 
-            // 5. Buscar en ambas rutas: celulares y fijos, para cada móvil
-            List<AudioVentaDTO> audios = new ArrayList<>();
+            // 4. Buscar en ambas rutas: celulares y fijos, para cada móvil
             for (String movil : moviles) {
                 audios.addAll(buscarEnRuta(request.getNumeroServidor(), "GSM/spain/celulares/" + fechaFormateada, movil, endpoint));
                 audios.addAll(buscarEnRuta(request.getNumeroServidor(), "GSM/spain/fijos/" + fechaFormateada, movil, endpoint));
@@ -98,12 +159,12 @@ public class VentaAudioService {
                 }
             }
 
-            // 6. Eliminar duplicados
+            // 5. Eliminar duplicados
             audios = audios.stream()
                 .distinct()
                 .collect(Collectors.toList());
 
-            // 7. Filtrar por número de agente si existe
+            // 6. Filtrar por número de agente si existe
             if (request.getNumeroAgente() != null && !request.getNumeroAgente().isEmpty()) {
                 String agenteRequest = request.getNumeroAgente();
 
@@ -126,22 +187,11 @@ public class VentaAudioService {
                     .collect(Collectors.toList());
             }
 
-            return BuscarAudiosVentaResponse.builder()
-                .success(true)
-                .message("Búsqueda completada exitosamente")
-                .audios(audios)
-                .totalAudios(audios.size())
-                .build();
-
         } catch (Exception e) {
-            log.error("❌ Error buscando audios: {}", e.getMessage(), e);
-            return BuscarAudiosVentaResponse.builder()
-                .success(false)
-                .message("Error al buscar audios: " + e.getMessage())
-                .audios(new ArrayList<>())
-                .totalAudios(0)
-                .build();
+            log.warn("⚠️ Error buscando en servidor {}: {}", request.getNumeroServidor(), e.getMessage());
         }
+
+        return audios;
     }
 
     /**
