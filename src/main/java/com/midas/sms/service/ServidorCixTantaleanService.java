@@ -21,18 +21,18 @@ import java.util.zip.ZipOutputStream;
 
 @Service
 @RequiredArgsConstructor
-public class ServidorLosOlivosRonierYuvvisiaAlinsonService {
+public class ServidorCixTantaleanService {
 
-    @Value("${asterisk.los.olivos.ronier.yuvvisia.alinson.server.host}")
+    @Value("${asterisk.cix.tantalean.server.host}")
     private String remoteHost;
 
-    @Value("${asterisk.los.olivos.ronier.yuvvisia.alinson.server.user}")
+    @Value("${asterisk.cix.tantalean.server.user}")
     private String remoteUser;
 
-    @Value("${asterisk.los.olivos.ronier.yuvvisia.alinson.server.password}")
+    @Value("${asterisk.cix.tantalean.server.password}")
     private String remotePassword;
 
-    @Value("${asterisk.los.olivos.ronier.yuvvisia.alinson.server.port}")
+    @Value("${asterisk.cix.tantalean.server.port}")
     private int remotePort;
 
     private static final String RUTA_BASE_MONITOR = "/var/spool/asterisk/monitorDONE";
@@ -173,9 +173,8 @@ public class ServidorLosOlivosRonierYuvvisiaAlinsonService {
 
         // Ordenar: carpetas primero (ascendente), luego archivos (ascendente)
         out.sort(Comparator
-                .comparing((ArchivoSistemaDTO archivo) -> !archivo.esDirectorio()) // Carpetas primero (false < true)
-                .thenComparing(ArchivoSistemaDTO::nombre, String.CASE_INSENSITIVE_ORDER)); // Luego por nombre
-                                                                                           // ascendente
+                .comparing((ArchivoSistemaDTO archivo) -> !archivo.esDirectorio())
+                .thenComparing(ArchivoSistemaDTO::nombre, String.CASE_INSENSITIVE_ORDER));
 
         return out;
     }
@@ -275,3 +274,4 @@ public class ServidorLosOlivosRonierYuvvisiaAlinsonService {
         }
     }
 }
+

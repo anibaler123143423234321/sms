@@ -13,7 +13,7 @@ import java.io.InputStream;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/monitordone")
+@RequestMapping("/api/monitor-cix-vidarte")
 @RequiredArgsConstructor
 public class ServidorCixVidarteController {
 

@@ -13,7 +13,7 @@ import java.io.InputStream;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/monitor-cix-rayner-estrada")
+@RequestMapping("/api/monitor-cix-solivesa1")
 @RequiredArgsConstructor
 public class ServidorCixRaynerEstradaController {
 

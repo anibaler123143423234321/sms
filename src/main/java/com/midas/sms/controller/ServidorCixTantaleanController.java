@@ -1,7 +1,7 @@
 package com.midas.sms.controller;
 
 import com.midas.sms.dto.PaginaContenidoDTO;
-import com.midas.sms.service.ServidorLosOlivosRonierYuvvisiaAlinsonService;
+import com.midas.sms.service.ServidorCixTantaleanService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
@@ -13,11 +13,11 @@ import java.io.InputStream;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/monitor-los-olivos-ronier-yuvvisia-alinson")
+@RequestMapping("/api/monitor-cix-tantalean")
 @RequiredArgsConstructor
-public class ServidorLosOlivosRonierYuvvisiaAlinsonController {
+public class ServidorCixTantaleanController {
 
-    private final ServidorLosOlivosRonierYuvvisiaAlinsonService service;
+    private final ServidorCixTantaleanService service;
 
     @GetMapping("/archivos")
     public ResponseEntity<PaginaContenidoDTO> explorarContenido(
@@ -83,3 +83,4 @@ public class ServidorLosOlivosRonierYuvvisiaAlinsonController {
         }
     }
 }
+

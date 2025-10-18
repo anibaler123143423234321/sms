@@ -25,30 +25,27 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class VentaAudioService {
 
-    private final ServidorCixMaryoryJoseyService servidorCixMaryoryJoseyService;
+    // Servicios de CHICLAYO únicamente
     private final ServidorCixVidarteService servidorCixVidarteService;
+    private final ServidorCixTantaleanService servidorCixTantaleanService;
     private final ServidorCixMiguelKevinService servidorCixMiguelKevinService;
-    private final ServidorSanMiguelMayraAngeloService servidorSanMiguelMayraAngeloService;
+    private final ServidorCixJulcaService servidorCixJulcaService;
     private final ServidorCixRaynerEstradaService servidorCixRaynerEstradaService;
-    private final ServidorLosOlivosRonierYuvvisiaAlinsonService servidorLosOlivosRonierYuvvisiaAlinsonService;
-    private final ServidorLosOlivosAscencioService servidorLosOlivosAscencioService;
-    private final ServidorSanMiguelMariaJoseService servidorSanMiguelMariaJoseService;
+    private final ServidorCixSolivesa2Service servidorCixSolivesa2Service;
 
     @Value("${sms.service.base.url:https://apisozarusac.com/BackendArchivos}")
     private String baseUrl;
 
-    // Mapeo de número de servidor a endpoint
+    // Mapeo de número de servidor a endpoint (SOLO CHICLAYO)
     private static final Map<String, String> SERVIDOR_A_ENDPOINT = new HashMap<>();
-    
+
     static {
-        SERVIDOR_A_ENDPOINT.put("154", "/api/monitordone");
-        SERVIDOR_A_ENDPOINT.put("23", "/api/monitor-cix-maryory-josey");
-        SERVIDOR_A_ENDPOINT.put("31", "/api/monitor-cix-miguel-kevin");
-        SERVIDOR_A_ENDPOINT.put("32", "/api/monitor-san-miguel-mayra-angelo");
-        SERVIDOR_A_ENDPOINT.put("33", "/api/monitor-cix-rayner-estrada");
-        SERVIDOR_A_ENDPOINT.put("34", "/api/monitor-los-olivos-ronier-yuvvisia-alinson");
-        SERVIDOR_A_ENDPOINT.put("35", "/api/monitor-los-olivos-ascencio");
-        SERVIDOR_A_ENDPOINT.put("36", "/api/monitor-san-miguel-maria-jose");
+        SERVIDOR_A_ENDPOINT.put("154", "/api/monitor-cix-vidarte");
+        SERVIDOR_A_ENDPOINT.put("23", "/api/monitor-cix-tantalean");
+        SERVIDOR_A_ENDPOINT.put("31", "/api/monitor-cix-kevin");
+        SERVIDOR_A_ENDPOINT.put("126", "/api/monitor-cix-julca");
+        SERVIDOR_A_ENDPOINT.put("14", "/api/monitor-cix-solivesa1");
+        SERVIDOR_A_ENDPOINT.put("157", "/api/monitor-cix-solivesa2");
     }
 
     /**
@@ -183,10 +180,13 @@ public class VentaAudioService {
                         .urlCompleta(urlCompleta)
                         .numeroAgente(numeroAgente)
                         .extension(extension)
+                        .ruta(ruta)
+                        .controlador(endpoint)
                         .build();
 
                     audios.add(audio);
-                    log.info("✅ Audio encontrado: {} - Agente: {}", archivo.nombre(), numeroAgente);
+                    log.info("✅ Audio encontrado: {} - Agente: {} - Ruta: {} - Controlador: {}",
+                        archivo.nombre(), numeroAgente, ruta, endpoint);
                 }
             }
 
@@ -198,20 +198,21 @@ public class VentaAudioService {
     }
 
     /**
-     * Obtiene el contenido del servidor según el número de servidor
+     * Obtiene el contenido del servidor según el número de servidor (SOLO CHICLAYO)
      */
     private PaginaContenidoDTO obtenerContenidoServidor(String numeroServidor, String ruta) {
         try {
             return switch (numeroServidor) {
-                case "23" -> servidorCixMaryoryJoseyService.listarContenidoPaginado(ruta, null, null, null, 1, 500);
                 case "154" -> servidorCixVidarteService.listarContenidoPaginado(ruta, null, null, null, 1, 500);
+                case "23" -> servidorCixTantaleanService.listarContenidoPaginado(ruta, null, null, null, 1, 500);
                 case "31" -> servidorCixMiguelKevinService.listarContenidoPaginado(ruta, null, null, null, 1, 500);
-                case "32" -> servidorSanMiguelMayraAngeloService.listarContenidoPaginado(ruta, null, null, null, 1, 500);
-                case "33" -> servidorCixRaynerEstradaService.listarContenidoPaginado(ruta, null, null, null, 1, 500);
-                case "34" -> servidorLosOlivosRonierYuvvisiaAlinsonService.listarContenidoPaginado(ruta, null, null, null, 1, 500);
-                case "35" -> servidorLosOlivosAscencioService.listarContenidoPaginado(ruta, null, null, null, 1, 500);
-                case "36" -> servidorSanMiguelMariaJoseService.listarContenidoPaginado(ruta, null, null, null, 1, 500);
-                default -> null;
+                case "126" -> servidorCixJulcaService.listarContenidoPaginado(ruta, null, null, null, 1, 500);
+                case "14" -> servidorCixRaynerEstradaService.listarContenidoPaginado(ruta, null, null, null, 1, 500);
+                case "157" -> servidorCixSolivesa2Service.listarContenidoPaginado(ruta, null, null, null, 1, 500);
+                default -> {
+                    log.warn("⚠️ Servidor no encontrado: {}", numeroServidor);
+                    yield null;
+                }
             };
         } catch (Exception e) {
             log.error("❌ Error obteniendo contenido del servidor {}: {}", numeroServidor, e.getMessage());

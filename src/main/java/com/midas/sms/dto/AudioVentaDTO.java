@@ -19,6 +19,10 @@ public class AudioVentaDTO {
     private String urlCompleta;
     private String numeroAgente;
     private String extension;
+    private String urlMp3; // URL del audio convertido a MP3
+    private String estadoConversion; // "PENDIENTE", "CONVIRTIENDO", "COMPLETADO", "ERROR"
+    private String ruta; // Ruta del archivo en el servidor (ej: "GSM/spain/celulares/16102025")
+    private String controlador; // Endpoint del controlador (ej: "/api/monitor-cix-maryory-josey")
 
     @Override
     public boolean equals(Object o) {

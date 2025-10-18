@@ -21,18 +21,18 @@ import java.util.zip.ZipOutputStream;
 
 @Service
 @RequiredArgsConstructor
-public class ServidorSanMiguelMayraAngeloService {
+public class ServidorCixJulcaService {
 
-    @Value("${asterisk.san.miguel.mayra.angelo.server.host}")
+    @Value("${asterisk.cix.julca.server.host}")
     private String remoteHost;
 
-    @Value("${asterisk.san.miguel.mayra.angelo.server.user}")
+    @Value("${asterisk.cix.julca.server.user}")
     private String remoteUser;
 
-    @Value("${asterisk.san.miguel.mayra.angelo.server.password}")
+    @Value("${asterisk.cix.julca.server.password}")
     private String remotePassword;
 
-    @Value("${asterisk.san.miguel.mayra.angelo.server.port}")
+    @Value("${asterisk.cix.julca.server.port}")
     private int remotePort;
 
     private static final String RUTA_BASE_MONITOR = "/var/spool/asterisk/monitorDONE";
@@ -173,9 +173,8 @@ public class ServidorSanMiguelMayraAngeloService {
 
         // Ordenar: carpetas primero (ascendente), luego archivos (ascendente)
         out.sort(Comparator
-                .comparing((ArchivoSistemaDTO archivo) -> !archivo.esDirectorio()) // Carpetas primero (false < true)
-                .thenComparing(ArchivoSistemaDTO::nombre, String.CASE_INSENSITIVE_ORDER)); // Luego por nombre
-                                                                                           // ascendente
+                .comparing((ArchivoSistemaDTO archivo) -> !archivo.esDirectorio())
+                .thenComparing(ArchivoSistemaDTO::nombre, String.CASE_INSENSITIVE_ORDER));
 
         return out;
     }
@@ -275,3 +274,4 @@ public class ServidorSanMiguelMayraAngeloService {
         }
     }
 }
+
