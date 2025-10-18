@@ -30,7 +30,6 @@ public class VentaAudioService {
     private final ServidorCixTantaleanService servidorCixTantaleanService;
     private final ServidorCixMiguelKevinService servidorCixMiguelKevinService;
     private final ServidorCixJulcaService servidorCixJulcaService;
-    private final ServidorCixRaynerEstradaService servidorCixRaynerEstradaService;
     private final ServidorCixSolivesa2Service servidorCixSolivesa2Service;
 
     @Value("${sms.service.base.url:https://apisozarusac.com/BackendArchivos}")
@@ -44,7 +43,6 @@ public class VentaAudioService {
         SERVIDOR_A_ENDPOINT.put("23", "/api/monitor-cix-tantalean");     // 104.128.75.23 - MARYORITH TANTALEAN
         SERVIDOR_A_ENDPOINT.put("31", "/api/monitor-cix-kevin");         // 172.96.143.31 - KEVIN QUISPE
         SERVIDOR_A_ENDPOINT.put("126", "/api/monitor-cix-julca");        // 45.92.18.126 - JOSSEY JULCA
-        SERVIDOR_A_ENDPOINT.put("14", "/api/monitor-cix-solivesa1");     // 104.128.75.14 - SOLIVESA 1
         SERVIDOR_A_ENDPOINT.put("154", "/api/monitor-cix-vidarte");      // 104.243.47.154 - VIDARTE/JUAPE
         SERVIDOR_A_ENDPOINT.put("157", "/api/monitor-cix-solivesa2");    // 104.243.47.157 - SOLIVESA 2
     }
@@ -258,7 +256,6 @@ public class VentaAudioService {
                 case "23" -> servidorCixTantaleanService.listarContenidoPaginado(ruta, null, null, null, 1, 500);
                 case "31" -> servidorCixMiguelKevinService.listarContenidoPaginado(ruta, null, null, null, 1, 500);
                 case "126" -> servidorCixJulcaService.listarContenidoPaginado(ruta, null, null, null, 1, 500);
-                case "14" -> servidorCixRaynerEstradaService.listarContenidoPaginado(ruta, null, null, null, 1, 500);
                 case "157" -> servidorCixSolivesa2Service.listarContenidoPaginado(ruta, null, null, null, 1, 500);
                 default -> {
                     log.warn("⚠️ Servidor no encontrado: {}", numeroServidor);
@@ -333,29 +330,52 @@ public class VentaAudioService {
 
     /**
      * Extrae el número de agente del nombre del archivo
-     * Formato: {extension}{movilContacto}-{numeroAgente}-{DD-MM-YYYY-HH-MM-SS}.gsm
-     * Ejemplo: "022626047261-8009-16-10-2025-14-42-47.gsm" → "8009"
+     * Soporta 2 formatos:
+     * - Formato 1: {extension}{movilContacto}-{numeroAgente}-{DD-MM-YYYY-HH-MM-SS}.gsm
+     *   Ejemplo: "022626047261-8009-16-10-2025-14-42-47.gsm" → "8009"
+     * - Formato 2: {YYYYMMDD}-{HHMMSS}_{movil}_{campaign}_agent{agente}-{suffix}.gsm
+     *   Ejemplo: "20251018-182407_609229717_TESTCAMP_agent012-all.gsm" → "012"
      */
     private String extraerNumeroAgente(String nombreArchivo, String movilContacto) {
-        // Patrón: {extension}{movil}-{agente}-{fecha}.gsm
+        // Intentar Formato 2: agent{numero}
+        Pattern patternAgent = Pattern.compile("agent(\\d+)", Pattern.CASE_INSENSITIVE);
+        Matcher matcherAgent = patternAgent.matcher(nombreArchivo);
+        if (matcherAgent.find()) {
+            return matcherAgent.group(1);
+        }
+
+        // Intentar Formato 1: {extension}{movil}-{agente}-{fecha}.gsm
         Pattern pattern = Pattern.compile("\\d+-(\\d+)-\\d{2}-\\d{2}-\\d{4}");
         Matcher matcher = pattern.matcher(nombreArchivo);
         if (matcher.find()) {
             return matcher.group(1);
         }
+
         return null;
     }
 
     /**
      * Extrae la extensión del nombre del archivo
-     * Formato: {extension}{movilContacto}-{numeroAgente}-{DD-MM-YYYY-HH-MM-SS}.gsm
-     * Ejemplo: "022626047261-8009-16-10-2025-14-42-47.gsm" con móvil "626047261" → "022"
+     * Soporta 2 formatos:
+     * - Formato 1: {extension}{movilContacto}-{numeroAgente}-{DD-MM-YYYY-HH-MM-SS}.gsm
+     *   Ejemplo: "022626047261-8009-16-10-2025-14-42-47.gsm" con móvil "626047261" → "022"
+     * - Formato 2: {YYYYMMDD}-{HHMMSS}_{movil}_{campaign}_agent{agente}-{suffix}.gsm
+     *   Ejemplo: "20251018-182407_609229717_TESTCAMP_agent012-all.gsm" → "012" (mismo que agente)
      */
     private String extraerExtension(String nombreArchivo, String movilContacto) {
+        // Intentar Formato 2: usar el número de agente como extensión
+        Pattern patternAgent = Pattern.compile("agent(\\d+)", Pattern.CASE_INSENSITIVE);
+        Matcher matcherAgent = patternAgent.matcher(nombreArchivo);
+        if (matcherAgent.find()) {
+            return matcherAgent.group(1);
+        }
+
+        // Intentar Formato 1: extraer prefijo antes del móvil
         int indexMovil = nombreArchivo.indexOf(movilContacto);
         if (indexMovil > 0) {
             return nombreArchivo.substring(0, indexMovil);
         }
+
         return null;
     }
 }
