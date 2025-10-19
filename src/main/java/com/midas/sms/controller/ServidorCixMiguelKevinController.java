@@ -94,4 +94,13 @@ public class ServidorCixMiguelKevinController {
         PaginaContenidoDTO resultado = service.buscarAudiosRapido(numeroMovil, pagina, tamano);
         return ResponseEntity.ok(resultado);
     }
+
+    @DeleteMapping("/eliminar-audios")
+    public ResponseEntity<Void> eliminarCarpetaAudios(
+            @RequestParam String numeroMovil,
+            @RequestParam String fecha
+    ) {
+        service.eliminarCarpetaAudios(numeroMovil, fecha);
+        return ResponseEntity.ok().build();
+    }
 }

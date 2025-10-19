@@ -6,5 +6,5 @@ public record PaginaContenidoDTO(
         int paginaActual,
         int totalPaginas,
         long totalElementos,
-        List<ArchivoSistemaDTO> contenido
+        List<?> contenido  // Puede ser List<ArchivoSistemaDTO> o List<AudioVentaDTO>
 ) {}

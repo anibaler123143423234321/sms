@@ -2,6 +2,7 @@ package com.midas.sms.service;
 
 import com.jcraft.jsch.*;
 import com.midas.sms.dto.ArchivoSistemaDTO;
+import com.midas.sms.dto.AudioVentaDTO;
 import com.midas.sms.dto.PaginaContenidoDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -335,7 +336,11 @@ public class ServidorCixTantaleanService {
             sftpChannel = (ChannelSftp) channel;
             @SuppressWarnings("unchecked")
             Vector<ChannelSftp.LsEntry> entries = sftpChannel.ls(rutaResultados);
-            List<ArchivoSistemaDTO> archivos = new ArrayList<>();
+            List<AudioVentaDTO> archivos = new ArrayList<>();
+
+            // Fecha de hoy (cuando se ejecutó el script y se creó la carpeta)
+            String fechaCreadaRuta = fechaHoy;
+
             for (ChannelSftp.LsEntry entry : entries) {
                 String nombre = entry.getFilename();
                 if (".".equals(nombre) || "..".equals(nombre)) continue;
@@ -346,31 +351,51 @@ public class ServidorCixTantaleanService {
                     log.debug("⏩ Archivo {} ignorado (tamaño: {} bytes < {} bytes)", nombre, tamanoBytes, TAMANO_MINIMO_BYTES);
                     continue;
                 }
+
                 String tamanoFormateado = formatearTamano(tamanoBytes);
+                String duracion = calcularDuracionAudio(tamanoBytes);
+
                 long mtime = attrs.getMTime() * 1000L;
-                Date fecha = new Date(mtime);
-                SimpleDateFormat sdfFecha = new SimpleDateFormat("yyyy-MM-dd");
+                Date fechaArchivo = new Date(mtime);
                 SimpleDateFormat sdfHora = new SimpleDateFormat("HH:mm:ss");
-                ArchivoSistemaDTO archivo = new ArchivoSistemaDTO(nombre, sdfFecha.format(fecha), sdfHora.format(fecha), tamanoFormateado, false);
-                archivos.add(archivo);
-                log.debug("✅ Archivo encontrado: {} - {} - {}", nombre, tamanoFormateado, sdfFecha.format(fecha));
+
+                // Crear AudioVentaDTO con toda la información
+                AudioVentaDTO audio = AudioVentaDTO.builder()
+                    .nombre(nombre)
+                    .fechaCreadaRutaServidor(fechaCreadaRuta) // Fecha cuando se creó la carpeta
+                    .hora(sdfHora.format(fechaArchivo))
+                    .tamano(tamanoFormateado)
+                    .tamanoBytes(String.valueOf(tamanoBytes))
+                    .duracion(duracion)
+                    .ipServidor(remoteHost)
+                    .idLeadTranscrito(null)
+                    .build();
+
+                archivos.add(audio);
+                log.debug("✅ Archivo encontrado: {} - Duración: {} - IP: {}",
+                    nombre, duracion, remoteHost);
             }
+
             log.info("📊 Total archivos encontrados (> 3 min): {}", archivos.size());
+
+            // Ordenar por fecha de archivo (más reciente primero)
             archivos.sort((a, b) -> {
                 try {
                     SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-                    Date fechaA = sdf.parse(a.fecha() + " " + a.hora());
-                    Date fechaB = sdf.parse(b.fecha() + " " + b.hora());
+                    Date fechaA = sdf.parse(a.getFechaCreadaRutaServidor() + " " + a.getHora());
+                    Date fechaB = sdf.parse(b.getFechaCreadaRutaServidor() + " " + b.getHora());
                     return fechaB.compareTo(fechaA);
                 } catch (Exception e) { return 0; }
             });
+
             long total = archivos.size();
             int size = Math.max(1, tamano);
             int totalPaginas = (int) Math.ceil((double) total / size);
             int paginaActual = Math.min(Math.max(1, pagina), Math.max(1, totalPaginas));
             int desde = (paginaActual - 1) * size;
             int hasta = (int) Math.min(desde + size, total);
-            List<ArchivoSistemaDTO> page = (total > 0 && desde < hasta) ? archivos.subList(desde, hasta) : new ArrayList<>();
+            List<AudioVentaDTO> page = (total > 0 && desde < hasta) ? archivos.subList(desde, hasta) : new ArrayList<>();
+
             log.info("📄 Página {}/{} - Mostrando {} de {} archivos", paginaActual, totalPaginas, page.size(), total);
             return new PaginaContenidoDTO(paginaActual, totalPaginas, total, page);
         } catch (Exception e) {
@@ -387,6 +412,51 @@ public class ServidorCixTantaleanService {
         if (bytes < 1024) return bytes + " B";
         else if (bytes < 1024 * 1024) return String.format("%.2f KB", bytes / 1024.0);
         else return String.format("%.2f MB", bytes / (1024.0 * 1024.0));
+    }
+
+    /**
+     * Calcula la duración aproximada del audio en formato mm:ss
+     * Basado en: GSM codec = 13 kbps (1.625 KB/s)
+     */
+    private String calcularDuracionAudio(long bytes) {
+        // GSM codec: ~1.625 KB por segundo (13 kbps / 8)
+        double segundosTotales = bytes / 1625.0;
+        int minutos = (int) (segundosTotales / 60);
+        int segundos = (int) (segundosTotales % 60);
+        return String.format("%d:%02d", minutos, segundos);
+    }
+
+    public void eliminarCarpetaAudios(String numeroMovil, String fecha) {
+        Session session = null;
+        ChannelExec channelExec = null;
+        try {
+            log.info("🗑️ Eliminando carpeta de audios para móvil: {} fecha: {}", numeroMovil, fecha);
+            JSch jsch = new JSch();
+            session = jsch.getSession(remoteUser, remoteHost, remotePort);
+            session.setPassword(remotePassword);
+            session.setConfig("StrictHostKeyChecking", "no");
+            session.setConfig("PreferredAuthentications", "publickey,password,keyboard-interactive");
+            session.setServerAliveInterval(15000);
+            session.setServerAliveCountMax(2);
+            session.connect(8000);
+            String rutaCarpeta = String.format("%s/%s/%s", RUTA_RESULTADOS_BASE, fecha, numeroMovil);
+            String comando = String.format("rm -rf %s", rutaCarpeta);
+            log.info("📡 Ejecutando comando: {}", comando);
+            channelExec = (ChannelExec) session.openChannel("exec");
+            channelExec.setCommand(comando);
+            channelExec.connect();
+            int maxWait = 10, waited = 0;
+            while (!channelExec.isClosed() && waited < maxWait) { Thread.sleep(1000); waited++; }
+            int exitStatus = channelExec.getExitStatus();
+            if (exitStatus == 0) log.info("✅ Carpeta eliminada exitosamente: {}", rutaCarpeta);
+            else log.warn("⚠️ Comando retornó código: {} para ruta: {}", exitStatus, rutaCarpeta);
+        } catch (Exception e) {
+            log.error("❌ Error eliminando carpeta de audios: {}", e.getMessage(), e);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Error eliminando carpeta de audios: " + e.getMessage());
+        } finally {
+            if (channelExec != null && channelExec.isConnected()) channelExec.disconnect();
+            if (session != null && session.isConnected()) session.disconnect();
+        }
     }
 }
 

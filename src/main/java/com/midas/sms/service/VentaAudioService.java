@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -164,27 +165,8 @@ public class VentaAudioService {
                 .collect(Collectors.toList());
 
             // 6. Filtrar por número de agente si existe
-            if (request.getNumeroAgente() != null && !request.getNumeroAgente().isEmpty()) {
-                String agenteRequest = request.getNumeroAgente();
-
-                audios = audios.stream()
-                    .filter(audio -> {
-                        if (audio.getNumeroAgente() == null) return false;
-
-                        // Comparar de 3 formas:
-                        // 1. Exacta: "8011" == "8011"
-                        // 2. Con prefijo 8: "011" → "8011"
-                        // 3. Sin prefijo 8: "8011" → "011"
-                        String agenteAudio = audio.getNumeroAgente();
-
-                        boolean match = agenteAudio.equals(agenteRequest) ||
-                                       agenteAudio.equals("8" + agenteRequest) ||
-                                       ("8" + agenteAudio).equals(agenteRequest);
-
-                        return match;
-                    })
-                    .collect(Collectors.toList());
-            }
+            // TODO: Implementar filtro por agente si es necesario en el futuro
+            // Por ahora el filtro se hace en el frontend
 
         } catch (Exception e) {
             log.warn("⚠️ Error buscando en servidor {}: {}", request.getNumeroServidor(), e.getMessage());
@@ -211,31 +193,21 @@ public class VentaAudioService {
             }
 
             // Filtrar archivos que contengan el móvil de contacto
-            for (ArchivoSistemaDTO archivo : paginaContenido.contenido()) {
-                if (!archivo.esDirectorio() && archivo.nombre().contains(movilContacto)) {
-                    // Construir URL completa
-                    String urlCompleta = String.format("%s%s/archivos/descargar?ruta=%s/%s",
-                        baseUrl, endpoint, ruta, archivo.nombre());
+            for (Object obj : paginaContenido.contenido()) {
+                if (obj instanceof ArchivoSistemaDTO archivo) {
+                    if (!archivo.esDirectorio() && archivo.nombre().contains(movilContacto)) {
+                        AudioVentaDTO audio = AudioVentaDTO.builder()
+                            .nombre(archivo.nombre())
+                            .fechaCreadaRutaServidor(archivo.fecha())
+                            .hora(archivo.hora())
+                            .tamano(archivo.tamano())
+                            .ipServidor(null) // No disponible en método antiguo
+                            .idLeadTranscrito(null) // Por ahora null
+                            .build();
 
-                    // Extraer número de agente y extensión del nombre del archivo
-                    String numeroAgente = extraerNumeroAgente(archivo.nombre(), movilContacto);
-                    String extension = extraerExtension(archivo.nombre(), movilContacto);
-
-                    AudioVentaDTO audio = AudioVentaDTO.builder()
-                        .nombre(archivo.nombre())
-                        .fecha(archivo.fecha())
-                        .hora(archivo.hora())
-                        .tamano(archivo.tamano())
-                        .urlCompleta(urlCompleta)
-                        .numeroAgente(numeroAgente)
-                        .extension(extension)
-                        .ruta(ruta)
-                        .controlador(endpoint)
-                        .build();
-
-                    audios.add(audio);
-                    log.info("✅ Audio encontrado: {} - Agente: {} - Ruta: {} - Controlador: {}",
-                        archivo.nombre(), numeroAgente, ruta, endpoint);
+                        audios.add(audio);
+                        log.info("✅ Audio encontrado: {}", archivo.nombre());
+                    }
                 }
             }
 

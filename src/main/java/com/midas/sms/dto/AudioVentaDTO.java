@@ -12,29 +12,26 @@ import java.util.Objects;
 @AllArgsConstructor
 @Builder
 public class AudioVentaDTO {
-    private String nombre;
-    private String fecha;
-    private String hora;
-    private String tamano;
-    private String urlCompleta;
-    private String numeroAgente;
-    private String extension;
-    private String urlMp3; // URL del audio convertido a MP3
-    private String estadoConversion; // "PENDIENTE", "CONVIRTIENDO", "COMPLETADO", "ERROR"
-    private String ruta; // Ruta del archivo en el servidor (ej: "GSM/spain/celulares/16102025")
-    private String controlador; // Endpoint del controlador (ej: "/api/monitor-cix-maryory-josey")
+    private String nombre;                  // Nombre del archivo de audio
+    private String fechaCreadaRutaServidor; // Fecha cuando se creó la carpeta en el servidor (ejecución del script)
+    private String hora;                    // Hora del archivo
+    private String tamano;                  // Tamaño formateado (KB/MB)
+    private String tamanoBytes;             // Tamaño en bytes (para cálculos)
+    private String duracion;                // Duración del audio en formato mm:ss
+    private String ipServidor;              // IP del servidor donde se encontró
+    private Long idLeadTranscrito;          // ID del lead (cliente_residencial) asociado a esta transcripción
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         AudioVentaDTO that = (AudioVentaDTO) o;
-        return Objects.equals(nombre, that.nombre) && Objects.equals(urlCompleta, that.urlCompleta);
+        return Objects.equals(nombre, that.nombre);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(nombre, urlCompleta);
+        return Objects.hash(nombre);
     }
 }
 

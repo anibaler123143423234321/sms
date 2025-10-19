@@ -88,5 +88,14 @@ public class ServidorCixSolivesa2Controller {
         PaginaContenidoDTO resultado = servidorCixSolivesa2Service.buscarAudiosRapido(numeroMovil, pagina, tamano);
         return ResponseEntity.ok(resultado);
     }
+
+    @DeleteMapping("/eliminar-audios")
+    public ResponseEntity<Void> eliminarCarpetaAudios(
+            @RequestParam String numeroMovil,
+            @RequestParam String fecha
+    ) {
+        servidorCixSolivesa2Service.eliminarCarpetaAudios(numeroMovil, fecha);
+        return ResponseEntity.ok().build();
+    }
 }
 

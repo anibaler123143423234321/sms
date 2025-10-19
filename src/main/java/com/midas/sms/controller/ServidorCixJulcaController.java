@@ -108,5 +108,18 @@ public class ServidorCixJulcaController {
         PaginaContenidoDTO resultado = service.buscarAudiosRapido(numeroMovil, pagina, tamano);
         return ResponseEntity.ok(resultado);
     }
+
+    /**
+     * Elimina la carpeta de audios de búsqueda rápida
+     * DELETE /api/monitor-cix-julca/eliminar-audios?numeroMovil=653608842&fecha=2025-10-18
+     */
+    @DeleteMapping("/eliminar-audios")
+    public ResponseEntity<Void> eliminarCarpetaAudios(
+            @RequestParam String numeroMovil,
+            @RequestParam String fecha
+    ) {
+        service.eliminarCarpetaAudios(numeroMovil, fecha);
+        return ResponseEntity.ok().build();
+    }
 }
 
