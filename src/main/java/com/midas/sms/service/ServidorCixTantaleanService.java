@@ -368,7 +368,6 @@ public class ServidorCixTantaleanService {
                     .tamanoBytes(String.valueOf(tamanoBytes))
                     .duracion(duracion)
                     .ipServidor(remoteHost)
-                    .idLeadTranscrito(null)
                     .build();
 
                 archivos.add(audio);

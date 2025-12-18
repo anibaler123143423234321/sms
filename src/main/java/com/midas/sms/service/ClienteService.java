@@ -7,6 +7,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -39,6 +42,34 @@ public class ClienteService {
     
     public List<Cliente> obtenerTodosLosClientes() {
         return clienteRepository.findAll();
+    }
+    
+    /**
+     * Obtener clientes con filtro opcional de fechas
+     */
+    public List<Cliente> obtenerClientes(String fechaDesde, String fechaHasta) {
+        if (fechaDesde == null && fechaHasta == null) {
+            return clienteRepository.findAll();
+        }
+        
+        LocalDateTime desde = null;
+        LocalDateTime hasta = null;
+        
+        if (fechaDesde != null && !fechaDesde.isEmpty()) {
+            desde = LocalDate.parse(fechaDesde).atStartOfDay();
+        }
+        
+        if (fechaHasta != null && !fechaHasta.isEmpty()) {
+            hasta = LocalDate.parse(fechaHasta).atTime(LocalTime.MAX);
+        }
+        
+        if (desde != null && hasta != null) {
+            return clienteRepository.findByFechaRegistroBetween(desde, hasta);
+        } else if (desde != null) {
+            return clienteRepository.findByFechaRegistroAfter(desde);
+        } else {
+            return clienteRepository.findByFechaRegistroBefore(hasta);
+        }
     }
     
     public Optional<Cliente> obtenerClientePorDocumento(String numeroDocumento) {

@@ -19,7 +19,6 @@ public class AudioVentaDTO {
     private String tamanoBytes;             // Tamaño en bytes (para cálculos)
     private String duracion;                // Duración del audio en formato mm:ss
     private String ipServidor;              // IP del servidor donde se encontró
-    private Long idLeadTranscrito;          // ID del lead (cliente_residencial) asociado a esta transcripción
 
     @Override
     public boolean equals(Object o) {

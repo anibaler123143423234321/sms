@@ -361,7 +361,6 @@ public class ServidorCixSolivesa2Service {
                     .tamanoBytes(String.valueOf(tamanoBytes))
                     .duracion(duracion)
                     .ipServidor(remoteHost)
-                    .idLeadTranscrito(null)
                     .build();
                 archivos.add(audio);
                 log.debug("✅ Archivo encontrado: {} - {} - Duración: {} - IP: {}", nombre, tamanoFormateado, duracion, remoteHost);

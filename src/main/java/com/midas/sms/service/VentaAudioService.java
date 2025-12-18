@@ -202,7 +202,6 @@ public class VentaAudioService {
                             .hora(archivo.hora())
                             .tamano(archivo.tamano())
                             .ipServidor(null) // No disponible en método antiguo
-                            .idLeadTranscrito(null) // Por ahora null
                             .build();
 
                         audios.add(audio);

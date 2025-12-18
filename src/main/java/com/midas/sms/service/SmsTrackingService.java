@@ -108,6 +108,25 @@ public class SmsTrackingService {
     }
     
     /**
+     * Obtiene todos los trackings con filtro opcional de fechas
+     */
+    public List<SmsTrackingResponseDTO> obtenerTodosLosTrackings(String fechaDesde, String fechaHasta) {
+        List<SmsTracking> trackings;
+        
+        if (fechaDesde != null && fechaHasta != null && !fechaDesde.isEmpty() && !fechaHasta.isEmpty()) {
+            LocalDateTime desde = LocalDateTime.parse(fechaDesde + "T00:00:00");
+            LocalDateTime hasta = LocalDateTime.parse(fechaHasta + "T23:59:59");
+            trackings = smsTrackingRepository.findByCreatedAtBetween(desde, hasta);
+        } else {
+            trackings = smsTrackingRepository.findAllByOrderByCreatedAtDesc();
+        }
+        
+        return trackings.stream()
+                .map(this::convertirADTO)
+                .collect(Collectors.toList());
+    }
+    
+    /**
      * Obtiene tracking por código
      */
     public Optional<SmsTracking> obtenerPorCodigo(String codigoTracking) {

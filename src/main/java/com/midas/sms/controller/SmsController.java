@@ -280,6 +280,25 @@ public class SmsController {
                     .body(new ApiResponse<>(false, "Error al obtener estadísticas: " + e.getMessage(), null));
         }
     }
+    
+    /**
+     * Lista todos los trackings con filtro opcional de fechas
+     */
+    @GetMapping("/tracking/listar")
+    public ResponseEntity<ApiResponse<List<SmsTrackingResponseDTO>>> listarTrackings(
+            @RequestParam(required = false) String fechaDesde,
+            @RequestParam(required = false) String fechaHasta) {
+        try {
+            List<SmsTrackingResponseDTO> trackings = smsTrackingService.obtenerTodosLosTrackings(fechaDesde, fechaHasta);
+
+            return ResponseEntity.ok(new ApiResponse<>(true,
+                    "Trackings obtenidos exitosamente", trackings));
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse<>(false, "Error al obtener trackings: " + e.getMessage(), null));
+        }
+    }
 
     /**
      * Obtiene información de un tracking específico

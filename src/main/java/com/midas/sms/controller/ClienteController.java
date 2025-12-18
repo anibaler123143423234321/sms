@@ -52,15 +52,17 @@ public class ClienteController {
     }
     
     @GetMapping("/listar")
-    public ResponseEntity<ApiResponse<List<Cliente>>> listarClientes() {
+    public ResponseEntity<ApiResponse<List<Cliente>>> listarClientes(
+            @RequestParam(required = false) String fechaDesde,
+            @RequestParam(required = false) String fechaHasta) {
         try {
-            List<Cliente> clientes = clienteService.obtenerTodosLosClientes();
+            List<Cliente> clientes = clienteService.obtenerClientes(fechaDesde, fechaHasta);
             return ResponseEntity.ok(
                     ApiResponse.success("Clientes obtenidos exitosamente", clientes)
             );
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("Error al obtener los clientes"));
+                    .body(ApiResponse.error("Error al obtener los clientes: " + e.getMessage()));
         }
     }
     

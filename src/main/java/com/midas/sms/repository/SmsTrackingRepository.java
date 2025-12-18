@@ -35,4 +35,9 @@ public interface SmsTrackingRepository extends JpaRepository<SmsTracking, Long> 
     List<SmsTracking> findNoVisitadosAnterioresA(@Param("fechaLimite") LocalDateTime fechaLimite);
     
     boolean existsByCodigoTracking(String codigoTracking);
+    
+    List<SmsTracking> findAllByOrderByCreatedAtDesc();
+    
+    @Query("SELECT st FROM SmsTracking st WHERE st.createdAt BETWEEN :desde AND :hasta ORDER BY st.createdAt DESC")
+    List<SmsTracking> findByCreatedAtBetween(@Param("desde") LocalDateTime desde, @Param("hasta") LocalDateTime hasta);
 }
