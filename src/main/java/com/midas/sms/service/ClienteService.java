@@ -4,6 +4,7 @@ import com.midas.sms.dto.ClienteDTO;
 import com.midas.sms.entity.Cliente;
 import com.midas.sms.repository.ClienteRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,9 +16,11 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ClienteService {
     
     private final ClienteRepository clienteRepository;
+    private final SmsService smsService;
     
     @Transactional
     public Cliente registrarCliente(ClienteDTO clienteDTO) {
@@ -37,7 +40,39 @@ public class ClienteService {
         cliente.setApellidosNombres(clienteDTO.getApellidosNombres());
         cliente.setNumeroCelular(clienteDTO.getNumeroCelular());
         
-        return clienteRepository.save(cliente);
+        Cliente clienteGuardado = clienteRepository.save(cliente);
+        
+        // Enviar SMS de confirmación
+        enviarSmsConfirmacion(clienteGuardado);
+        
+        return clienteGuardado;
+    }
+    
+    /**
+     * Envía un SMS de confirmación al cliente recién registrado
+     */
+    private void enviarSmsConfirmacion(Cliente cliente) {
+        try {
+            String mensaje = String.format(
+                "Hola %s, tu registro fue exitoso. Gracias por registrarte.",
+                cliente.getApellidosNombres()
+            );
+            
+            smsService.sendSingleMessage(
+                "MIDAS",                      // from
+                cliente.getNumeroCelular(),   // to (ya incluye prefijo internacional)
+                mensaje,                      // text
+                null                          // sendAt (envío inmediato)
+            );
+            
+            log.info("SMS de confirmación enviado a {} para cliente {}", 
+                    cliente.getNumeroCelular(), cliente.getApellidosNombres());
+                    
+        } catch (Exception e) {
+            // Log error pero no fallar el registro
+            log.warn("No se pudo enviar SMS de confirmación al cliente {}: {}", 
+                    cliente.getApellidosNombres(), e.getMessage());
+        }
     }
     
     public List<Cliente> obtenerTodosLosClientes() {
